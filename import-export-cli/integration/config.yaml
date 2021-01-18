@@ -1,0 +1,17 @@
+---
+# name - apictl environment name
+# host - host name of APIM instance  
+# offset - port offset of APIM instance
+environments:
+- name: DEVELOPMENT
+  host: localhost
+  offset: 0
+- name: PRODUCTION
+  host: localhost
+  offset: 1
+# duration tests will wait to allow APIM solr indexes to be updated
+indexing-delay: 1000
+
+dcr-version: v0.17
+rest-api-version: v1
+apictl-version: 3.2.0

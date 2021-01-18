@@ -1,0 +1,25 @@
+From 617c9f309ecb77c72185ed396290da5dfd97082e Mon Sep 17 00:00:00 2001
+From: uvindra <uvindra_dj@yahoo.com>
+Date: Mon, 18 Jan 2021 11:37:42 +0530
+Subject: [PATCH] Fix test
+
+---
+ import-export-cli/integration/testutils/api_testUtils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/import-export-cli/integration/testutils/api_testUtils.go b/import-export-cli/integration/testutils/api_testUtils.go
+index 9dc63d5..93ead34 100644
+--- a/import-export-cli/integration/testutils/api_testUtils.go
++++ b/import-export-cli/integration/testutils/api_testUtils.go
+@@ -462,7 +462,7 @@ func ValidateAPIDelete(t *testing.T, args *ApiImportExportTestArgs) {
+ }
+ 
+ func exportApiImportedFromProject(t *testing.T, APIName string, APIVersion string, EnvName string) (string, error) {
+-	return base.Execute(t, "export-api", "-n", APIName, "-v", APIVersion, "-e", EnvName)
++	return base.Execute(t, "export-api", "-n", APIName, "-v", APIVersion, "-e", EnvName, "-k")
+ }
+ 
+ func ExportAllApisOfATenant(t *testing.T, args *ApiImportExportTestArgs) (string, error) {
+-- 
+2.17.1
+

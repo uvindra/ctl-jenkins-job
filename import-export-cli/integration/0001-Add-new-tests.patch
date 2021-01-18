@@ -1,0 +1,350 @@
+From 000835b636dca965a8461dad69ebf14084edbd5d Mon Sep 17 00:00:00 2001
+From: uvindra <uvindra_dj@yahoo.com>
+Date: Wed, 23 Sep 2020 16:14:27 +0530
+Subject: [PATCH] Add new tests
+
+---
+ import-export-cli/integration/base/helper.go  |  13 +-
+ .../integration/devFirst_test.go              |   8 ++
+ .../integration/dynamicData_test.go           |  58 +++++++++
+ .../integration/environmnet_test.go           |   2 +
+ .../testdata/testDynamicAPIDefinition.yaml    | 117 ++++++++++++++++++
+ .../testutils/devFirst_testUtils.go           |  12 +-
+ .../integration/testutils/testConstants.go    |   2 +
+ .../integration/testutils/testTypes.go        |   2 +-
+ 8 files changed, 207 insertions(+), 7 deletions(-)
+ create mode 100644 import-export-cli/integration/dynamicData_test.go
+ create mode 100644 import-export-cli/integration/testdata/testDynamicAPIDefinition.yaml
+
+diff --git a/import-export-cli/integration/base/helper.go b/import-export-cli/integration/base/helper.go
+index e97df2b..a81369b 100644
+--- a/import-export-cli/integration/base/helper.go
++++ b/import-export-cli/integration/base/helper.go
+@@ -307,10 +307,21 @@ func CreateTempDir(t *testing.T, path string) {
+ 	}
+ }
+ 
++// SetEnvVariable : Set environment variable
++func SetEnvVariable(t *testing.T, key string, value string) {
++	t.Log("base.SetEnvVariable() - key: ", key, ", value: ", value)
++
++	os.Setenv(key, value)
++
++	t.Cleanup(func() {
++		os.Unsetenv(key)
++	})
++}
++
+ func GetExportedPathFromOutput(output string) string {
+ 	//Check directory path to omit changes due to OS differences
+ 	if strings.Contains(output, ":\\") {
+-		arrayOutput := []rune (output)
++		arrayOutput := []rune(output)
+ 		extractedPath := string(arrayOutput[strings.Index(output, ":\\")-1:])
+ 		return strings.ReplaceAll(strings.ReplaceAll(extractedPath, "\n", ""), " ", "")
+ 	} else {
+diff --git a/import-export-cli/integration/devFirst_test.go b/import-export-cli/integration/devFirst_test.go
+index 0d8caec..df9bc0d 100644
+--- a/import-export-cli/integration/devFirst_test.go
++++ b/import-export-cli/integration/devFirst_test.go
+@@ -129,6 +129,8 @@ func TestImportProjectCreatedFromSwagger2Definition(t *testing.T) {
+ 		ForceFlag: false,
+ 	}
+ 
++	testutils.ValidateInitializeProjectWithOASFlag(t, args)
++
+ 	//Assert that project import to publisher portal is successful
+ 	testutils.ValidateImportProject(t, args)
+ }
+@@ -149,6 +151,8 @@ func TestImportProjectCreatedFromOpenAPI3Definition(t *testing.T) {
+ 		ForceFlag: false,
+ 	}
+ 
++	testutils.ValidateInitializeProjectWithOASFlag(t, args)
++
+ 	//Assert that project import to publisher portal is successful
+ 	testutils.ValidateImportProject(t, args)
+ }
+@@ -169,6 +173,8 @@ func TestImportProjectCreatedFailWhenAPIIsExisted(t *testing.T) {
+ 		ForceFlag: false,
+ 	}
+ 
++	testutils.ValidateInitializeProjectWithOASFlag(t, args)
++
+ 	//Import API for the First time
+ 	testutils.ValidateImportProject(t, args)
+ 
+@@ -192,6 +198,8 @@ func TestImportProjectCreatedPassWhenAPIIsExisted(t *testing.T) {
+ 		ForceFlag: false,
+ 	}
+ 
++	testutils.ValidateInitializeProjectWithOASFlag(t, args)
++
+ 	//Import API for the First time
+ 	testutils.ValidateImportProject(t, args)
+ 
+diff --git a/import-export-cli/integration/dynamicData_test.go b/import-export-cli/integration/dynamicData_test.go
+new file mode 100644
+index 0000000..8aebdd1
+--- /dev/null
++++ b/import-export-cli/integration/dynamicData_test.go
+@@ -0,0 +1,58 @@
++/*
++*  Copyright (c) WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
++*
++*  WSO2 Inc. licenses this file to you under the Apache License,
++*  Version 2.0 (the "License"); you may not use this file except
++*  in compliance with the License.
++*  You may obtain a copy of the License at
++*
++*    http://www.apache.org/licenses/LICENSE-2.0
++*
++* Unless required by applicable law or agreed to in writing,
++* software distributed under the License is distributed on an
++* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++* KIND, either express or implied.  See the License for the
++* specific language governing permissions and limitations
++* under the License.
++ */
++package integration
++
++import (
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++	"github.com/wso2/product-apim-tooling/import-export-cli/integration/base"
++	"github.com/wso2/product-apim-tooling/import-export-cli/integration/testutils"
++)
++
++func TestDynamicDataAPIProject(t *testing.T) {
++	apim := apimClients[0]
++	projectName := base.GenerateRandomName(16)
++	username := superAdminUser
++	password := superAdminPassword
++
++	name := "Techstore"
++	version := "1.2.0"
++
++	base.SetEnvVariable(t, "APINAME", name)
++	base.SetEnvVariable(t, "APIVERSION", version)
++
++	args := &testutils.InitTestArgs{
++		CtlUser:        testutils.Credentials{Username: username, Password: password},
++		SrcAPIM:        apim,
++		InitFlag:       projectName,
++		DefinitionFlag: testutils.TestDynamicAPIDefinitionPath,
++		ForceFlag:      false,
++	}
++
++	testutils.ValidateInitializeProjectWithDefinitionFlag(t, args)
++
++	testutils.ValidateImportProject(t, args)
++
++	apis := apim.GetAPIs()
++
++	assert.Equal(t, 1, apis.Count, " Expected API count defers")
++
++	assert.Equal(t, name, apis.List[0].Name, "API name does not match")
++	assert.Equal(t, version, apis.List[0].Version, "API version does not match")
++}
+diff --git a/import-export-cli/integration/environmnet_test.go b/import-export-cli/integration/environmnet_test.go
+index 993dc86..f5aa685 100644
+--- a/import-export-cli/integration/environmnet_test.go
++++ b/import-export-cli/integration/environmnet_test.go
+@@ -79,6 +79,8 @@ func TestChangeExportDirectory(t *testing.T) {
+ 		ForceFlag: false,
+ 	}
+ 
++	testutils.ValidateInitializeProjectWithOASFlag(t, apiArgs)
++
+ 	//Assert that project import to publisher portal is successful
+ 	testutils.ValidateImportProject(t, apiArgs)
+ 
+diff --git a/import-export-cli/integration/testdata/testDynamicAPIDefinition.yaml b/import-export-cli/integration/testdata/testDynamicAPIDefinition.yaml
+new file mode 100644
+index 0000000..2d980c9
+--- /dev/null
++++ b/import-export-cli/integration/testdata/testDynamicAPIDefinition.yaml
+@@ -0,0 +1,117 @@
++# Copyright (c) 2020, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++# http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++id: # ID of API
++  providerName: admin # Provider name for API [required]
++  apiName: $APINAME # Name of the API without Spaces(see publisher UI for more) [required]
++  version: $APIVERSION # Version of API(required)
++description: 'This is a sample server Petstore server.' # Description of API
++type: HTTP # Type of API {HTTP|WS} [required]
++context: /petstore/$APIVERSION # Context of API with a leading slash, CLI tool will append version on import(if you want to put version like /1.0.0/v2 just set context to /{version}/v2 please refer UI for this) [required]
++tags: # tags for API as a list
++  - pets
++  - petstore
++  - swagger
++documents: [] # Documents attached with API
++lastUpdated: Jul 6, 2020 11:01:30 PM # Last updated time and date of API
++availableTiers: # available tiers as a list, Silver, Bronze etc
++  -
++    name: Bronze
++    displayName: Bronze
++    description: Allows 1000 requests per minute
++    requestsPerMin: 1000
++    requestCount: 1000
++    unitTime: 1
++    timeUnit: min
++    tierPlan: FREE
++    stopOnQuotaReached: true
++  -
++    name: Unlimited
++    displayName: Unlimited
++    description: Allows unlimited requests
++    requestsPerMin: 2147483647
++    requestCount: 2147483647
++    unitTime: 0
++    timeUnit: ms
++    tierPlan: FREE
++    stopOnQuotaReached: true
++availableSubscriptionLevelPolicies: [] # Available subscription Level policies for API
++uriTemplates: [] # URI Templates provided for schema validation
++apiHeaderChanged: false # Is API Header changed true|false
++apiResourcePatternsChanged: false # Is API resource pattern  changed true|false
++status: PUBLISHED # Lifecycle status of the API, Set this to Created or Published or Prototyped on first import [required]
++technicalOwner: John Doe # Technical owner (plea)
++technicalOwnerEmail: john@doe.com #  Email of the technical owner
++businessOwner: Jane Doe # Business Owner
++businessOwnerEmail: jane@doe.com # Email of business owner
++visibility: public # visibility of API, either public or private [required]
++gatewayLabels: [] # Labels related to other gateways as Micro-gateways
++endpointSecured: false # is endpoint secured true|false
++endpointAuthDigest: false # is end point auth digested true|false
++transports: http,https # Transport protocol in comma separated list
++inSequence: debug_in_flow # In sequence name(put this xml file in corresponding directory{described in doc})
++outSequence: json_to_xml_out_message # Out sequence name(put this xml file in corresponding directory{described in doc})
++faultSequence: json_fault # Fault sequence name(put this xml file in corresponding directory{described in doc})
++subscriptionAvailability: all_tenants # Availability of subscription of the API
++corsConfiguration: # CORS settings
++  corsConfigurationEnabled: true # is cors enabled ?
++  accessControlAllowOrigins: # Allowd origins for CORS in a List * is for any
++    - '*'
++  accessControlAllowCredentials: true # Allow credentials
++  accessControlAllowHeaders: # allowed headers as a list
++    - authorization
++    - Access-Control-Allow-Origin
++    - Content-Type
++    - SOAPAction
++  accessControlAllowMethods: # allowed methods as a list
++    - GET
++    - PUT
++    - POST
++    - DELETE
++    - PATCH
++    - OPTIONS
++
++# Note, either endpointConfig or productionUrl or sandboxUrl should present.
++# If endpointConfig is not present and productionUrl or sandboxUrl presents CLI will automatically generate endpointConfig
++# based on urls given, on init Users will have a field to fill for this prod and sandbox urls
++productionUrl: "http://dev.wso2.com" # production url for API
++sandboxUrl: "https://dev.sb.wso2.com" # sandbox url for API
++endpointConfig: '{"endpoint_type":"http","sandbox_endpoints":{"url":"https:\/\/petstore.swagger.io\/v2"},"production_endpoints":{"url":"https:\/\/petstore.swagger.io\/v2"}}' # endpoint configuration(direct editing not recommended)
++responseCache: Enabled # Is response cache is enabled true|false
++cacheTimeout: 300 # response cache time out
++implementation: ENDPOINT # Implementation of endpoints
++authorizationHeader: Authorization # Authorization header for requests when invoking API
++scopes: [] # Shared Scopes for API
++isDefaultVersion: true # Is API default? if set to true APIM will discard version and make API default
++isPublishedDefaultVersion: false # Is default version published?
++keyManagers: # List of key manager endPoints
++  - all
++environments: # Gateway environments as a list
++  - Production and Sandbox
++createdTime: "1594056066304"
++additionalProperties: # Additional properties of API as key:value paris
++  TestingVersion: V1
++monetizationProperties: {} # List of mentization Properties
++isMonetizationEnabled: false # Is monetization Enabled true|false
++environmentList: # Environments supported as a list
++  - SANDBOX
++  - PRODUCTION
++apiSecurity: oauth2,oauth_basic_auth_api_key_mandatory,mutualssl # Additional properties of API as key:value paris
++endpoints: [] # List of dynamic and other endpoints
++enableSchemaValidation: false # Is schema validation is anabled
++apiCategories: [] # List of API Categories API belongs to
++enableStore: true # is enabled in store
++accessControl: all # access control for the API
++rating: 0.0 # rating of API
++isLatest: true # is the latest version ?
+diff --git a/import-export-cli/integration/testutils/devFirst_testUtils.go b/import-export-cli/integration/testutils/devFirst_testUtils.go
+index f7b4342..0ba4e9c 100644
+--- a/import-export-cli/integration/testutils/devFirst_testUtils.go
++++ b/import-export-cli/integration/testutils/devFirst_testUtils.go
+@@ -41,7 +41,7 @@ func InitProjectWithDefinitionFlag(t *testing.T, args *InitTestArgs) (string, er
+ 	base.SetupEnvWithoutTokenFlag(t, args.SrcAPIM.GetEnvName(), args.SrcAPIM.GetApimURL())
+ 	base.Login(t, args.SrcAPIM.GetEnvName(), args.CtlUser.Username, args.CtlUser.Password)
+ 
+-	output, err := base.Execute(t, "init", args.InitFlag, "--definition", args.definitionFlag)
++	output, err := base.Execute(t, "init", args.InitFlag, "--definition", args.DefinitionFlag)
+ 	return output, err
+ }
+ 
+@@ -115,16 +115,18 @@ func ValidateInitializeProjectWithDefinitionFlag(t *testing.T, args *InitTestArg
+ 
+ func ValidateImportProject(t *testing.T, args *InitTestArgs) {
+ 	t.Helper()
+-	//Initialize a project with API definition
+-	ValidateInitializeProjectWithOASFlag(t, args)
+ 
+-	result, error := ImportApiFromProject(t, args.InitFlag, args.SrcAPIM, args.APIName, &args.CtlUser, true)
++	result, err := ImportApiFromProject(t, args.InitFlag, args.SrcAPIM, args.APIName, &args.CtlUser, true)
++
++	assert.Nil(t, err, "Error while importing Project")
+ 
+-	assert.Nil(t, error, "Error while importing Project")
+ 	assert.Contains(t, result, "Successfully imported API", "Error while importing Project")
+ 
+ 	base.WaitForIndexing()
+ 
++	// TODO: Need to validate API returned
++	getAPI(t, args.SrcAPIM, args.APIName, args.CtlUser.Username, args.CtlUser.Password)
++
+ 	//Remove Created project and logout
+ 	t.Cleanup(func() {
+ 		base.RemoveDir(args.InitFlag)
+diff --git a/import-export-cli/integration/testutils/testConstants.go b/import-export-cli/integration/testutils/testConstants.go
+index 2144976..465c782 100644
+--- a/import-export-cli/integration/testutils/testConstants.go
++++ b/import-export-cli/integration/testutils/testConstants.go
+@@ -25,6 +25,8 @@ const TestOpenAPISpecificationURL = "https://petstore.swagger.io/v2/swagger.json
+ const TestMigrationDirectorySuffix = "/migration"
+ const TestApiDefinitionPath = "testdata/testAPIDefinition.yaml"
+ 
++const TestDynamicAPIDefinitionPath = "testdata/testDynamicAPIDefinition.yaml"
++
+ const DefaultApictlTestAppName = "default-apictl-app"
+ 
+ //Export test cases
+diff --git a/import-export-cli/integration/testutils/testTypes.go b/import-export-cli/integration/testutils/testTypes.go
+index ba2437f..8bed6cd 100644
+--- a/import-export-cli/integration/testutils/testTypes.go
++++ b/import-export-cli/integration/testutils/testTypes.go
+@@ -79,7 +79,7 @@ type InitTestArgs struct {
+ 	CtlUser        Credentials
+ 	SrcAPIM        *apim.Client
+ 	InitFlag       string
+-	definitionFlag string
++	DefinitionFlag string
+ 	ForceFlag      bool
+ 	OasFlag        string
+ 	APIName        string
+-- 
+2.17.1
+
